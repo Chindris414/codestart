@@ -42,7 +42,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'core',
+    'accounts',
 ]
+AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -113,7 +115,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "Europe/Bucharest"
 
 USE_I18N = True
 
