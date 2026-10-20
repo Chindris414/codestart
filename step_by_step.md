@@ -278,3 +278,160 @@ git commit -m "Describe change" # save a snapshot locally
 git push                        # upload to GitHub
 ```
 
+## Step 2 – Django backend connected to Postgres
+
+**Goal:** a Django project in `backend/`, reading its settings from `.env`,
+storing data in the Postgres container, with the admin panel working.
+
+### 2a. Line endings (.gitattributes)
+
+File `.gitattributes` in the project root:
+
+```gitattributes
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+```
+
+```powershell
+git add --renormalize .
+```
+
+**Why:** stores text files with Linux line endings (LF), the same as Docker and the
+future Linux server. This removes the "LF will be replaced by CRLF" warning.
+Windows-only scripts keep CRLF; images are marked binary so Git never alters them.
+
+### 2b. Python virtual environment and packages
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1          # prompt now starts with (.venv)
+python -m pip install --upgrade pip
+pip install django djangorestframework "psycopg[binary]" django-environ
+pip freeze > requirements.txt
+```
+
+If activation is blocked ("running scripts is disabled"), run once:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+**Why:**
+- A virtual environment (`.venv`) keeps this project's packages separate from other
+  Python projects on the PC. It is in `.gitignore`, never committed.
+- `django` – web framework (admin, auth, ORM); installed version 6.1.2
+- `djangorestframework` – builds the JSON API for the frontend (3.18.3)
+- `psycopg[binary]` – PostgreSQL driver
+- `django-environ` – reads settings from `.env`
+- `requirements.txt` – exact versions; rebuild anywhere with `pip install -r requirements.txt`
+
+**Every new terminal:** `cd backend` then `.\.venv\Scripts\Activate.ps1` before Django commands.
+
+### 2c. Create the Django project
+
+```powershell
+django-admin startproject config .
+python manage.py --version            # 6.1.2
+```
+
+**Why:** the `.` creates the project directly in `backend/` (no nested folder);
+`config/` holds the settings, URLs and server entry points.
+
+```
+backend/
+  manage.py          # command-line tool for the project
+  requirements.txt
+  config/
+    settings.py      # all configuration
+    urls.py          # URL routes
+    asgi.py, wsgi.py # server entry points
+```
+
+### 2d. Settings from .env
+
+Generate a secret key:
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+
+Added to `.env` (and the same keys, without the secret value, to `.env.example`):
+```env
+DJANGO_SECRET_KEY=<generated key>
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+POSTGRES_HOST=127.0.0.1
+POSTGRES_PORT=5432
+```
+
+Changes in `backend/config/settings.py`:
+
+```python
+from pathlib import Path
+
+import environ
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Read settings from the .env file in the project root (CodeStart/.env)
+env = environ.Env(DJANGO_DEBUG=(bool, False))
+environ.Env.read_env(BASE_DIR.parent / ".env")
+
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+DEBUG = env("DJANGO_DEBUG")
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+
+INSTALLED_APPS = [
+    # ...the default django.contrib apps...
+    "rest_framework",
+]
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env("POSTGRES_DB"),
+        "USER": env("POSTGRES_USER"),
+        "PASSWORD": env("POSTGRES_PASSWORD"),
+        "HOST": env("POSTGRES_HOST", default="127.0.0.1"),
+        "PORT": env("POSTGRES_PORT", default="5432"),
+    }
+}
+```
+
+**Why:**
+- `BASE_DIR` = `backend/`, so `BASE_DIR.parent / ".env"` = `CodeStart/.env`, the same
+  file Docker Compose uses. One config file for everything, no secrets in code.
+- `SECRET_KEY` signs sessions/cookies; the default `django-insecure-...` key is replaced.
+- `DEBUG` defaults to False if missing (safe default for production).
+- `DATABASES` switches from the default SQLite file to the Postgres container.
+
+### 2e. Create tables, admin user, run the server
+
+Containers must be running (`docker compose ps`). From `backend` with `(.venv)` active:
+
+```powershell
+python manage.py check              # "System check identified no issues"
+python manage.py migrate            # creates Django's tables in Postgres
+python manage.py createsuperuser    # admin account (password is not shown while typing)
+python manage.py runserver          # keep this terminal open
+```
+
+Open http://127.0.0.1:8000/admin/ and log in. Result: Django administration page ✔
+
+**Lesson learned:** "ERR_CONNECTION_REFUSED" on 127.0.0.1:8000 means the server is not
+running. Start `runserver` and keep that terminal open; use a second terminal (+) for
+other commands. Stop the server with Ctrl+C.
+
+### 2f. Verify and commit
+
+From the project root, in a second terminal:
+```powershell
+docker compose exec db psql -U codestart -d codestart -c "\dt"   # lists auth_user, django_session...
+git status                     # .env and backend/.venv must NOT be listed
+git add .
+git commit -m "Backend: Django project connected to Postgres via .env"
+git push
+```
+
