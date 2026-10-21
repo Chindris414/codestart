@@ -71,6 +71,39 @@ Test-Path "C:\Program Files\Docker\Docker\resources\bin\docker.exe"   # should p
 ```
 
 
+## Daily routine
+
+### Start
+0. Start **Docker Desktop**, wait for "Engine running".
+1. Terminal 1 – project root:
+```powershell
+   docker compose up -d
+   docker compose ps        # db and redis (healthy)
+```
+2. Terminal 2 – backend:
+```powershell
+   cd backend
+   .\.venv\Scripts\Activate.ps1
+   python manage.py runserver      # http://127.0.0.1:8000
+```
+3. Terminal 3 – frontend:
+```powershell
+   cd frontend
+   npm run dev                      # http://localhost:3000
+```
+4. Check http://localhost:3000 → green "API: ok · Database: ok".
+
+### Stop
+- Ctrl+C in the Django and Next.js terminals
+- `docker compose stop` (keeps data) – or just quit Docker Desktop
+
+### Before starting work
+```powershell
+git status     # anything uncommitted from last time?
+git pull       # get latest from GitHub (useful when working from another PC)
+```
+
+
 ## Step 1 – Project skeleton: repo, Postgres and Redis
 
 **Goal:** a Git repository with a clear folder layout, and the two services the
@@ -618,3 +651,110 @@ git commit -m "Frontend: Next.js app showing backend health; Django /api/health/
 git push
 ```
 
+## Step 4 – Sign up, log in, log out
+
+**Goal:** learners create an account and log in with email + password on the website.
+Built on Django's built-in session auth (password hashing, sessions, CSRF) with a thin
+JSON API, and Next.js pages that call it through a proxy.
+
+### 4a. Custom user model (email login)
+
+```powershell
+python manage.py startapp accounts
+```
+
+- `accounts/models.py`: `User(AbstractUser)` with `username = None`,
+  `email` unique, `name`, `USERNAME_FIELD = "email"`, and a `UserManager`
+  (`create_user`, `create_superuser`) that lowercases emails and hashes passwords.
+- `accounts/admin.py`: custom `UserAdmin` + forms, because Django's default admin
+  expects a `username` field.
+- `settings.py`: `"accounts"` in `INSTALLED_APPS`, and `AUTH_USER_MODEL = "accounts.User"`.
+- `settings.py`: `TIME_ZONE = "Europe/Bucharest"` (times are still stored in UTC; only display changes).
+
+The database had to be reset, because the tables were built for the default user:
+```powershell
+docker compose down -v          # deletes ALL DB data – never do this with real users
+docker compose up -d
+python manage.py makemigrations accounts
+python manage.py migrate
+python manage.py createsuperuser   # now asks for Email address
+```
+
+**Why:** Django docs recommend a custom user model at the start of every project;
+switching later is painful. Email login suits learners better than usernames.
+
+### 4b. Auth API (Django)
+
+`accounts/views.py` + `accounts/urls.py`, mounted at `api/auth/` in `config/urls.py`:
+
+| Method | URL | What it does |
+| --- | --- | --- |
+| GET | `/api/auth/csrf` | Sets the `csrftoken` cookie |
+| POST | `/api/auth/signup` | Validates email + password rules, creates the user, logs in |
+| POST | `/api/auth/login` | `authenticate()` + `login()` |
+| POST | `/api/auth/logout` | `logout()` |
+| GET | `/api/auth/me` | Current user, or `null` |
+
+Security details:
+- Passwords checked with Django's validators (length, common passwords, numeric, similarity).
+- Login error is the same for wrong email and wrong password ("Invalid email or password.").
+- `login()` rotates the session id and CSRF token (prevents session fixation).
+- Plain Django views (not DRF), so Django's CSRF middleware protects every POST.
+- No trailing slash on these URLs: Next.js strips trailing slashes, so they pass the proxy cleanly.
+
+`settings.py` + `.env`:
+```python
+CSRF_TRUSTED_ORIGINS = env.list(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    default=["http://localhost:3000", "http://127.0.0.1:3000"],
+)
+```
+```env
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+**Why:** Django checks the `Origin` header of POSTs; only our frontend's origin is trusted.
+
+Browser tests: `/api/auth/me` shows the admin user (same session) and `null` in incognito;
+`/api/auth/login` via GET returns 405 (POST only).
+
+### 4c. Next.js proxy + Sign up / Log in pages
+
+`frontend/next.config.ts` – forward `/api/*` to Django:
+```ts
+const backend = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
+// inside nextConfig:
+async rewrites() {
+  return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];
+},
+```
+**Why:** the browser only talks to `localhost:3000`, so frontend and API are the same
+site: the session cookie just works, no CORS needed.
+(`next.config.ts` is in the `frontend/` root, not in `src/`. Restart `npm run dev` after editing it.)
+
+- `src/lib/auth.ts` – `postJson()`: gets a CSRF cookie if missing, sends JSON with the
+  `X-CSRFToken` header.
+- `src/app/signup/page.tsx` → `/signup`, `src/app/login/page.tsx` → `/login`
+  (folder name = URL). Client Components (`"use client"`) because they react to typing/clicks.
+
+Tests passed:
+- Weak password `12345678` → "too common", "entirely numeric" errors ✔
+- Sign up `test@codestart.com` → redirected home, user visible in admin, not staff ✔
+- Cookies on localhost:3000: `sessionid` is **HttpOnly** (JavaScript can't read it), `csrftoken` ✔
+- Wrong password → "Invalid email or password." ✔
+
+### 4d. Signed-in user + Log out
+
+- `src/components/LogoutButton.tsx` – Client Component: POST `/api/auth/logout`, then `router.refresh()`.
+- `src/app/page.tsx` – header with `AccountBox` (Server Component): reads the visitor's
+  cookies with `cookies()` and forwards them to Django `/api/auth/me` (server-to-server),
+  showing "Signed in as …" + Log out, or Log in / Sign up. Wrapped in `<Suspense>` (live data).
+
+Tests passed:
+- Signed in → "Signed in as test"; Log out → Log in / Sign up; `/api/auth/me` → null ✔
+- **CSRF test** in DevTools console (type `allow pasting` first if Chrome blocks pasting):
+```js
+  await fetch("/api/auth/logout", {method: "POST"}).then(r => r.status)   // 403
+```
+  A POST without the CSRF token is rejected; after refresh still signed in ✔
+
+  
