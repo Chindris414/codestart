@@ -3,9 +3,9 @@
 ### 0a. Check installed tools
 
 ```powershell
-git --version          # had: 2.49.0.windows.1
-python --version       # had: 3.13 (need 3.11+)
-node --version         # had: v24.11.0 (need 20+)
+git --version
+python --version
+node --version
 docker --version
 docker compose version
 ```
@@ -19,7 +19,7 @@ Docker Desktop on Windows runs on WSL 2.
 1. Install or update WSL 2 (PowerShell **as Administrator**):
 
 ```powershell
-   wsl --install      # first time; restart PC if asked
+   wsl --install
    wsl --update       # if WSL is already installed
 ```
 
@@ -757,4 +757,74 @@ Tests passed:
 ```
   A POST without the CSRF token is rejected; after refresh still signed in ✔
 
-  
+  ## Step 5 – Automated tests and CI (GitHub Actions)
+
+**Goal:** the backend behaviour (including security rules) and the frontend build are
+checked automatically on every push.
+
+### 5a. Backend tests
+
+- `backend/core/tests.py` – health endpoint returns 200 with `{"status": "ok", "database": "ok"}`.
+- `backend/accounts/tests.py` – 13 tests:
+  - sign up: creates user + logs in, email stored lowercase, weak password rejected,
+    invalid email rejected, duplicate email rejected (case-insensitive), new user is
+    not staff/superuser, password stored hashed
+  - log in: correct password works, wrong password and unknown email give the same
+    error, GET returns 405
+  - log out: session ends
+  - CSRF: POST without token → 403, POST with token → 200
+    (`Client(enforce_csrf_checks=True)`, because the test client skips CSRF by default)
+
+Run (in `backend`, with `(.venv)`):
+```powershell
+python manage.py test        # Ran 14 tests ... OK
+```
+
+**How it works:**
+- Django creates a temporary `test_codestart` database, runs the tests, then deletes it.
+  Real data is never touched.
+- Each test starts from an empty database, so tests are independent.
+- `self.client` is a built-in fake browser that keeps cookies between requests.
+- Test methods must start with `test_`.
+- Tip: break a test on purpose once (e.g. expect 200 instead of 405) to see what a FAIL report looks like.
+
+### 5b. Frontend checks
+
+Stop `npm run dev` first (build and dev both use `.next`), then in `frontend`:
+```powershell
+npm run lint      # ESLint: bad patterns, likely bugs
+npm run build     # TypeScript check + production build
+npm run dev       # start dev server again
+```
+
+Build routes table:
+- `/login`, `/signup` – static (prerendered once)
+- `/` – partial prerender: static shell + live `<Suspense>` parts streamed in
+
+The build does NOT need Django running; live parts only run when someone visits.
+
+### 5c. GitHub Actions
+
+Checked first: `backend/requirements.txt` encoding must be **UTF-8**
+(Windows PowerShell `>` can create UTF-16; fix in VS Code: status bar → Save with Encoding → UTF-8).
+
+File: `.github/workflows/ci.yml`, two jobs running in parallel on every push to `main`
+and every pull request:
+
+| Job | Steps |
+| --- | --- |
+| Backend tests | Postgres 17 service → Python 3.13 → `pip install -r requirements.txt` → `manage.py check` → `makemigrations --check --dry-run` → `manage.py test` |
+| Frontend lint and build | Node 24 → `npm ci` → `npm run lint` → `npm run build` |
+
+**Key points:**
+- `permissions: contents: read` – least privilege for the workflow.
+- CI uses fake, throwaway env values (DB lives a few minutes). Real secrets go in
+  GitHub **Settings → Secrets**, never in the workflow file.
+- `makemigrations --check` fails if a model changed without a migration.
+- `npm ci` = clean, exact install from `package-lock.json`.
+- Fresh machine every run → catches "works on my PC" problems.
+
+Result: both jobs green ✔ on GitHub → Actions; green ✔ next to the commit.
+
+**Daily habit:** after `git push`, glance at the ✔/✘ next to the commit on GitHub.
+A red ✘ → open Actions → click the failed step → read the log.
