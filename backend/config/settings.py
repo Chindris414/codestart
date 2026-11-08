@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'core',
     'accounts',
+    'learning',
 ]
 AUTH_USER_MODEL = "accounts.User"
 
