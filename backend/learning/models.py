@@ -30,15 +30,18 @@ class Module(models.Model):
     slug = models.SlugField()
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    order = models.PositiveIntegerField(help_text="Position inside the track, starting at 1.")
+    order = models.PositiveIntegerField(
+        help_text="Position inside the track, starting at 1. Ties are broken by id."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["track", "order"]
+        # `order` is a sort key only: it is deliberately not unique, so modules
+        # can be renumbered in the admin without tripping over each other.
+        ordering = ["track", "order", "id"]
         constraints = [
             models.UniqueConstraint(fields=["track", "slug"], name="unique_module_slug_per_track"),
-            models.UniqueConstraint(fields=["track", "order"], name="unique_module_order_per_track"),
         ]
 
     def __str__(self):
@@ -59,7 +62,9 @@ class Lesson(models.Model):
     title = models.CharField(max_length=200)
     lesson_type = models.CharField(max_length=20, choices=Type.choices, default=Type.CONCEPT)
     body = models.TextField(blank=True, help_text="Lesson text in Markdown.")
-    order = models.PositiveIntegerField(help_text="Position inside the module, starting at 1.")
+    order = models.PositiveIntegerField(
+        help_text="Position inside the module, starting at 1. Ties are broken by id."
+    )
     estimated_minutes = models.PositiveIntegerField(
         default=5, help_text="Rough reading and practice time shown to learners."
     )
@@ -67,10 +72,10 @@ class Lesson(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["module", "order"]
+        # `order` is a sort key only, not unique: see the note on Module.
+        ordering = ["module", "order", "id"]
         constraints = [
             models.UniqueConstraint(fields=["module", "slug"], name="unique_lesson_slug_per_module"),
-            models.UniqueConstraint(fields=["module", "order"], name="unique_lesson_order_per_module"),
         ]
 
     def __str__(self):
