@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 
-import { postJson } from "@/lib/auth";
+import { postJson, safeNextPath } from "@/lib/auth";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const next = safeNextPath(useSearchParams().get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -22,7 +23,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res.ok) {
-      router.push("/");
+      router.push(next);
       router.refresh();
       return;
     }
@@ -30,49 +31,62 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border p-6">
-        <h1 className="text-2xl font-bold">Log in</h1>
+    <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border p-6">
+      <h1 className="text-2xl font-bold">Log in</h1>
 
-        <label className="block">
-          <span className="text-sm font-medium">Email</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            className="mt-1 w-full rounded border px-3 py-2"
-          />
-        </label>
+      <label className="block">
+        <span className="text-sm font-medium">Email</span>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          className="mt-1 w-full rounded border px-3 py-2"
+        />
+      </label>
 
-        <label className="block">
-          <span className="text-sm font-medium">Password</span>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            className="mt-1 w-full rounded border px-3 py-2"
-          />
-        </label>
+      <label className="block">
+        <span className="text-sm font-medium">Password</span>
+        <input
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          className="mt-1 w-full rounded border px-3 py-2"
+        />
+      </label>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full rounded bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
+      >
+        {loading ? "Logging in…" : "Log in"}
+      </button>
+
+      <p className="text-center text-sm">
+        New here?{" "}
+        <Link
+          href={next === "/" ? "/signup" : `/signup?next=${encodeURIComponent(next)}`}
+          className="underline"
         >
-          {loading ? "Logging in…" : "Log in"}
-        </button>
+          Create an account
+        </Link>
+      </p>
+    </form>
+  );
+}
 
-        <p className="text-center text-sm">
-          New here?{" "}
-          <Link href="/signup" className="underline">Create an account</Link>
-        </p>
-      </form>
+export default function LoginPage() {
+  return (
+    <main className="min-h-screen flex items-center justify-center p-8">
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </main>
   );
 }

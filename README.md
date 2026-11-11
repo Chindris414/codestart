@@ -4,7 +4,7 @@
 
 CodeStart is a learn-to-code web platform for complete beginners. It pairs short lessons with hands-on coding in the browser, so a learner can write and run their first line of Python within minutes, with nothing to install.
 
-It's a personal hobby project, built and maintained by me. It's at an early stage: the foundation (accounts, API, frontend, tests, CI) works, and the learning features are next. See [ROADMAP.md](ROADMAP.md).
+It's a personal hobby project, built and maintained by me. It's at an early stage: the foundation (accounts, API, frontend, tests, CI) works, and learners can browse lessons and write and run Python in the browser. See [ROADMAP.md](ROADMAP.md).
 
 ## Who it's for
 
@@ -16,6 +16,7 @@ Adults and older teens with no programming experience, who often learn alone in 
 | --- | --- |
 | Backend | Python, Django, Django REST Framework |
 | Frontend | Next.js (React, TypeScript), Tailwind CSS |
+| In-browser coding | Monaco editor, Pyodide (Python on WebAssembly) in a Web Worker |
 | Database | PostgreSQL 17 |
 | Queue (for grading jobs, planned) | Redis 7 (+ Celery, planned) |
 | Local services | Docker Compose |
@@ -26,13 +27,18 @@ Adults and older teens with no programming experience, who often learn alone in 
 - Email sign-up, log-in and log-out (Django session auth, CSRF protection, password validation, custom email-based user model)
 - `/api/health/` endpoint and a home page that shows API and database status
 - Next.js proxy for `/api/*`, so the browser only talks to one origin
-- Backend tests (health, auth, CSRF) and CI that runs the tests, lint and production build on every push
+- Track, module and lesson pages; sample lessons open without an account, the rest after logging in
+- Lessons imported from Markdown files in `content/` (`python manage.py import_content content/python-fundamentals`)
+- A Monaco code editor per exercise with starter code and Reset
+- **Run** executes Python in the learner's browser (Pyodide in a Web Worker): output, tracebacks, `input()`, and Stop for endless loops. Code is never sent to the server. See [docs/python-in-the-browser.md](docs/python-in-the-browser.md)
+- Backend tests, frontend unit tests, and CI that runs them, lint and the production build on every push
 
 ## Project layout
 
 ```
 backend/     Django project (config/ settings, accounts/ users and auth API, core/ health endpoint)
-frontend/    Next.js app (src/app pages, src/lib API helpers, src/components)
+frontend/    Next.js app (src/app pages, src/lib API helpers and the Python runner, src/components)
+content/     Lessons as Markdown files
 docs/        codestart-spec.md, the full product specification
 .github/     CI workflow
 docker-compose.yml   PostgreSQL and Redis for local development
@@ -79,13 +85,15 @@ npm install
 npm run dev
 ```
 
+`npm run dev` (and `npm run build`) first copies Monaco and Pyodide into `frontend/public/` and bundles the Python worker; if you change files in `frontend/src/lib/python/` while the dev server runs, run `npm run assets` and reload.
+
 Open http://localhost:3000. The home page should show "API: ok · Database: ok". The frontend expects the backend at `http://127.0.0.1:8000`; to change that, set `BACKEND_URL` in `frontend/.env.local`.
 
 ## Running the tests
 
 ```bash
 cd backend && python manage.py test     # needs the db container running
-cd frontend && npm run lint && npm run build
+cd frontend && npm test && npm run lint && npm run build
 ```
 
 Django creates a temporary test database and deletes it afterwards, so local data isn't touched. The same checks run in GitHub Actions on every push and pull request.
@@ -97,6 +105,7 @@ The project contains no real personal data. All users and sample data are made u
 ## Documentation
 
 - [docs/codestart-spec.md](docs/codestart-spec.md): product specification (learners, courses, editor, grading, data model, security)
+- [docs/python-in-the-browser.md](docs/python-in-the-browser.md): how Run works, and its limitations
 - [ROADMAP.md](ROADMAP.md): planned work
 - [step_by_step.md](step_by_step.md): build notes
 

@@ -68,6 +68,10 @@ class Lesson(models.Model):
     estimated_minutes = models.PositiveIntegerField(
         default=5, help_text="Rough reading and practice time shown to learners."
     )
+    is_sample = models.BooleanField(
+        default=False,
+        help_text="Sample lessons are readable without an account (track must still be published).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

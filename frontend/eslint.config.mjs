@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Monaco's and Pyodide's prebuilt files, copied in by scripts/copy-vendor.mjs.
+    "public/monaco/**",
+    "public/pyodide/**",
+    "public/python/**",
   ]),
 ]);
 

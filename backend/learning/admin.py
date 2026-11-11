@@ -13,7 +13,7 @@ class ModuleInline(admin.TabularInline):
 
 class LessonInline(admin.TabularInline):
     model = Lesson
-    fields = ("order", "title", "slug", "lesson_type", "estimated_minutes")
+    fields = ("order", "title", "slug", "lesson_type", "estimated_minutes", "is_sample")
     prepopulated_fields = {"slug": ("title",)}
     extra = 0
     show_change_link = True
@@ -57,8 +57,8 @@ class ModuleAdmin(admin.ModelAdmin):
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
-    list_display = ("title", "module", "order", "lesson_type", "estimated_minutes", "updated_at")
-    list_filter = ("lesson_type", "module__track")
+    list_display = ("title", "module", "order", "lesson_type", "estimated_minutes", "is_sample", "updated_at")
+    list_filter = ("lesson_type", "is_sample", "module__track")
     list_select_related = ("module", "module__track")
     search_fields = ("title", "slug", "body")
     ordering = ("module", "order")

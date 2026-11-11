@@ -20,6 +20,12 @@
 # production
 /build
 
+# Monaco and Pyodide files, copied from node_modules by scripts/copy-vendor.mjs
+/public/monaco/
+/public/pyodide/
+# The Python worker, bundled by scripts/build-python-worker.mjs
+/public/python/
+
 # misc
 .DS_Store
 *.pem

@@ -9,6 +9,16 @@ export type ApiData = {
 
 export type ApiResult = { ok: boolean; status: number; data: ApiData };
 
+// Where to go after logging in or signing up. Only a same-site path is
+// allowed, so a crafted ?next= link cannot send the learner to another site
+// ("//evil.com" and "/\evil.com" are protocol-relative URLs, not paths).
+export function safeNextPath(raw: string | null): string {
+  if (raw && raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")) {
+    return raw;
+  }
+  return "/";
+}
+
 // Read a cookie value in the browser (the csrftoken cookie is readable; sessionid is not)
 function getCookie(name: string): string | null {
   const row = document.cookie.split("; ").find((r) => r.startsWith(name + "="));

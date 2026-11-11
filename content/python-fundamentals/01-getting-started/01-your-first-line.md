@@ -2,6 +2,7 @@
 title: Your first line of code
 type: concept
 minutes: 3
+sample: true
 ---
 # Your first line of code
 

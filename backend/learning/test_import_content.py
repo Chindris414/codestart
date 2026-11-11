@@ -198,6 +198,30 @@ class ImportContentTests(TestCase):
                 self.assertIn(rel.split("/")[-1], str(ctx.exception))
                 path.unlink()
 
+    def test_sample_front_matter_sets_and_clears_is_sample(self):
+        write(
+            self.track_dir / "01-intro" / "01-hello.md",
+            "---\ntitle: Hello\nsample: true\n---\nSay hi.\n",
+        )
+        run_import(self.track_dir)
+        self.assertTrue(Lesson.objects.get(slug="hello").is_sample)
+        # The other lessons default to not-a-sample.
+        self.assertFalse(Lesson.objects.get(slug="practice").is_sample)
+
+        # Removing the line puts the lesson back behind the login wall.
+        write(self.track_dir / "01-intro" / "01-hello.md", "---\ntitle: Hello\n---\nSay hi.\n")
+        run_import(self.track_dir)
+        self.assertFalse(Lesson.objects.get(slug="hello").is_sample)
+
+    def test_sample_must_be_a_boolean(self):
+        write(
+            self.track_dir / "01-intro" / "01-hello.md",
+            "---\ntitle: Hello\nsample: yes please\n---\n",
+        )
+        with self.assertRaisesMessage(CommandError, "'sample' must be true or false") as ctx:
+            run_import(self.track_dir)
+        self.assertIn("01-hello.md", str(ctx.exception))
+
     def test_stray_folder_without_lesson_is_an_error(self):
         write(self.track_dir / "01-intro" / "03-typo" / "ex" / "starter.py", "x\n")
         with self.assertRaisesMessage(CommandError, "no matching lesson file"):
@@ -221,9 +245,13 @@ class RepoContentTests(TestCase):
         self.assertTrue(REPO_CONTENT.is_dir(), f"missing {REPO_CONTENT}")
         run_import(REPO_CONTENT)
         track = Track.objects.get(slug="python-fundamentals")
+        self.assertTrue(track.is_published)
         self.assertEqual(track.modules.count(), 1)
         self.assertEqual(Lesson.objects.filter(module__track=track).count(), 2)
         self.assertEqual(Exercise.objects.filter(lesson__module__track=track).count(), 1)
+        # The first lesson is the free sample of the "First visit" journey.
+        self.assertTrue(Lesson.objects.get(slug="your-first-line").is_sample)
+        self.assertFalse(Lesson.objects.get(slug="say-hello").is_sample)
 
         out = run_import(REPO_CONTENT)
         self.assertIn("0 created, 0 updated, 5 unchanged", out)

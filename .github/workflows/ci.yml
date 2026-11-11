@@ -64,7 +64,7 @@ jobs:
         run: python manage.py test
 
   frontend:
-    name: Frontend lint and build
+    name: Frontend lint, tests and build
     runs-on: ubuntu-latest
 
     defaults:
@@ -85,6 +85,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Unit tests
+        run: npm test
 
       - name: Build
         run: npm run build

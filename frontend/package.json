@@ -3,24 +3,42 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "assets": "node scripts/copy-vendor.mjs && node scripts/build-python-worker.mjs",
+    "predev": "npm run assets",
     "dev": "next dev",
+    "prebuild": "npm run assets",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@monaco-editor/loader": "^1.7.0",
+    "monaco-editor": "^0.57.0",
     "next": "16.4.2",
+    "pyodide": "^314.0.7",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.9",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.3.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "jsdom": "^31.0.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.12"
   }
 }

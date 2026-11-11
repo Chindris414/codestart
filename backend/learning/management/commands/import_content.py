@@ -6,7 +6,8 @@ Content lives in a folder per track, laid out like this:
       track.md                     front matter: title, description, published
       01-getting-started/
         module.md                  front matter: title, description
-        01-your-first-line.md      a lesson; front matter: title, type, minutes
+        01-your-first-line.md      a lesson; front matter: title, type,
+                                   minutes, sample (readable while logged out)
         02-say-hello.md
         02-say-hello/              exercises for the lesson with the same name
           print-hello-world/
@@ -235,6 +236,9 @@ class Command(BaseCommand):
         minutes = meta.get("minutes", 5)
         if not isinstance(minutes, int) or isinstance(minutes, bool) or minutes < 0:
             raise ContentError(lesson_file, "'minutes' must be a whole number")
+        sample = meta.get("sample", False)
+        if not isinstance(sample, bool):
+            raise ContentError(lesson_file, "'sample' must be true or false")
 
         lesson = {
             "slug": slug,
@@ -244,6 +248,7 @@ class Command(BaseCommand):
                 "body": body,
                 "order": order,
                 "estimated_minutes": minutes,
+                "is_sample": sample,
             },
             "exercises": [],
         }
