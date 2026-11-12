@@ -32,12 +32,20 @@ async function ensureCsrfCookie() {
   }
 }
 
-// POST JSON to our API, with the CSRF token in the X-CSRFToken header
-export async function postJson(path: string, body: unknown = {}): Promise<ApiResult> {
+// Send JSON to our API, with the CSRF token in the X-CSRFToken header.
+// keepalive lets a request finish while the page is being closed (used by
+// autosave); browsers only allow it for small bodies.
+export async function sendJson(
+  method: "POST" | "PUT" | "DELETE",
+  path: string,
+  body: unknown = {},
+  { keepalive = false }: { keepalive?: boolean } = {},
+): Promise<ApiResult> {
   await ensureCsrfCookie();
   const res = await fetch(path, {
-    method: "POST",
+    method,
     credentials: "same-origin",
+    keepalive,
     headers: {
       "Content-Type": "application/json",
       "X-CSRFToken": getCookie("csrftoken") ?? "",
@@ -46,4 +54,9 @@ export async function postJson(path: string, body: unknown = {}): Promise<ApiRes
   });
   const data: ApiData = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
+}
+
+// POST JSON to our API (the common case)
+export async function postJson(path: string, body: unknown = {}): Promise<ApiResult> {
+  return sendJson("POST", path, body);
 }

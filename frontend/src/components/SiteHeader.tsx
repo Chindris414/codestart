@@ -1,27 +1,8 @@
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 
 import LogoutButton from "@/components/LogoutButton";
-import type { User } from "@/lib/auth";
-
-const backend = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
-
-// Ask Django who is logged in, forwarding the visitor's cookies (server-to-server)
-async function getCurrentUser(): Promise<User | null> {
-  const cookieHeader = (await cookies()).toString();
-  try {
-    const res = await fetch(`${backend}/api/auth/me`, {
-      headers: { cookie: cookieHeader },
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { user: User | null };
-    return data.user;
-  } catch {
-    return null;
-  }
-}
+import { getCurrentUser } from "@/lib/currentUser";
 
 async function AccountBox() {
   const user = await getCurrentUser();
@@ -37,6 +18,9 @@ async function AccountBox() {
 
   return (
     <div className="flex items-center gap-3 text-sm">
+      <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
+        My learning
+      </Link>
       <span>
         Signed in as <strong>{user.name || user.email}</strong>
       </span>

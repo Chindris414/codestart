@@ -5,6 +5,11 @@ everyone, including logged-in users. A lesson body and its exercises are
 returned only when the visitor may read the lesson: logged in, or the lesson
 is a sample. Exercise solutions and hidden tests are never part of any
 response.
+
+Lesson summaries carry the visitor's own progress state ("not_started",
+"in_progress" or "completed"); for a visitor every lesson is "not_started".
+These views stay free of side effects: starting a lesson is recorded by the
+separate POST in progress_views.
 """
 
 from django.db.models import Count
@@ -12,7 +17,18 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET
 
-from .models import Module, Track
+from .models import LessonProgress, Module, Track
+
+NOT_STARTED = "not_started"
+
+
+def _progress_states(request):
+    """This visitor's lesson states, as {lesson_id: state}."""
+    if not request.user.is_authenticated:
+        return {}
+    return dict(
+        LessonProgress.objects.filter(user=request.user).values_list("lesson_id", "state")
+    )
 
 
 def _published_track(slug):
@@ -32,7 +48,9 @@ def _module_data(module):
     }
 
 
-def _lesson_summary(lesson, request):
+def _lesson_summary(lesson, request, states=None):
+    if states is None:
+        states = _progress_states(request)
     return {
         "slug": lesson.slug,
         "title": lesson.title,
@@ -40,6 +58,7 @@ def _lesson_summary(lesson, request):
         "estimated_minutes": lesson.estimated_minutes,
         "is_sample": lesson.is_sample,
         "locked": not _can_read(lesson, request),
+        "state": states.get(lesson.id, NOT_STARTED),
     }
 
 
@@ -71,13 +90,16 @@ def track_list(request):
 def track_detail(request, track_slug):
     track = _published_track(track_slug)
     modules = track.modules.prefetch_related("lessons")
+    states = _progress_states(request)
     return JsonResponse(
         {
             "track": _track_data(track),
             "modules": [
                 {
                     **_module_data(module),
-                    "lessons": [_lesson_summary(l, request) for l in module.lessons.all()],
+                    "lessons": [
+                        _lesson_summary(l, request, states) for l in module.lessons.all()
+                    ],
                 }
                 for module in modules
             ],
@@ -89,11 +111,12 @@ def track_detail(request, track_slug):
 def module_detail(request, track_slug, module_slug):
     track = _published_track(track_slug)
     module = get_object_or_404(Module, track=track, slug=module_slug)
+    states = _progress_states(request)
     return JsonResponse(
         {
             "track": _track_data(track),
             "module": _module_data(module),
-            "lessons": [_lesson_summary(l, request) for l in module.lessons.all()],
+            "lessons": [_lesson_summary(l, request, states) for l in module.lessons.all()],
         }
     )
 

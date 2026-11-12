@@ -23,6 +23,11 @@ export type ModuleData = {
   order: number;
 };
 
+// The three lesson states of the spec. A visitor sees "not_started"
+// everywhere; "completed" is currently set by the learner pressing "Mark
+// lesson complete" (server grading arrives in Phase 3).
+export type LessonState = "not_started" | "in_progress" | "completed";
+
 export type LessonSummary = {
   slug: string;
   title: string;
@@ -30,6 +35,7 @@ export type LessonSummary = {
   estimated_minutes: number;
   is_sample: boolean;
   locked: boolean;
+  state: LessonState;
 };
 
 export type ExerciseData = {
@@ -66,6 +72,39 @@ export type LessonDetailResponse = {
   lesson: LessonDetail;
   previous: LessonLink;
   next: LessonLink;
+};
+
+// -- the learner's dashboard -------------------------------------------------
+
+export type ModuleProgress = {
+  slug: string;
+  title: string;
+  order: number;
+  lesson_count: number;
+  completed_count: number;
+  percent: number;
+};
+
+export type TrackProgress = {
+  slug: string;
+  title: string;
+  lesson_count: number;
+  completed_count: number;
+  percent: number;
+  modules: ModuleProgress[];
+};
+
+export type ContinueLink = {
+  track: string;
+  module: string;
+  lesson: string;
+  title: string;
+} | null;
+
+export type DashboardResponse = {
+  tracks: TrackProgress[];
+  continue_to: ContinueLink;
+  streak: number;
 };
 
 // GET from Django with the visitor's cookies. Returns null on 404 (the page

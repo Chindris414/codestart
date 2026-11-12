@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Exercise, Lesson, Module, Track
+from .models import ActivityDay, Exercise, ExerciseDraft, Lesson, LessonProgress, Module, Track
 
 
 class ModuleInline(admin.TabularInline):
@@ -74,3 +74,51 @@ class ExerciseAdmin(admin.ModelAdmin):
     search_fields = ("title", "slug", "instructions")
     ordering = ("lesson", "order")
     prepopulated_fields = {"slug": ("title",)}
+
+
+@admin.register(ExerciseDraft)
+class ExerciseDraftAdmin(admin.ModelAdmin):
+    """Learner data: visible for support and debugging, but not editable."""
+
+    list_display = ("user", "exercise", "updated_at")
+    list_select_related = ("user", "exercise", "exercise__lesson")
+    search_fields = ("user__email", "exercise__title")
+    readonly_fields = ("user", "exercise", "code", "created_at", "updated_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LessonProgress)
+class LessonProgressAdmin(admin.ModelAdmin):
+    """Learner data: readable for support, written by the app only."""
+
+    list_display = ("user", "lesson", "state", "completed_at", "updated_at")
+    list_filter = ("state", "lesson__module__track")
+    list_select_related = ("user", "lesson", "lesson__module")
+    search_fields = ("user__email", "lesson__title")
+    readonly_fields = ("user", "lesson", "state", "started_at", "completed_at", "updated_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ActivityDay)
+class ActivityDayAdmin(admin.ModelAdmin):
+    list_display = ("user", "date")
+    list_filter = ("date",)
+    list_select_related = ("user",)
+    search_fields = ("user__email",)
+    readonly_fields = ("user", "date")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

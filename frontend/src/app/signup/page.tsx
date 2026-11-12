@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 
 import { postJson, safeNextPath } from "@/lib/auth";
+import { importLocalDrafts } from "@/lib/draftSync";
 
 function SignupForm() {
   const router = useRouter();
@@ -26,6 +27,8 @@ function SignupForm() {
     setLoading(false);
 
     if (res.ok) {
+      // Code written before signing up moves into the new account (never throws).
+      await importLocalDrafts();
       router.push(next);
       router.refresh();
       return;

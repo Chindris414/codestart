@@ -6,6 +6,7 @@ import { draftsReducer, initDrafts, isDirty } from "@/lib/exerciseDrafts";
 
 import CodeEditor from "./CodeEditor";
 import RunPanel from "./RunPanel";
+import { useDraftAutosave, type SaveStatus } from "./useDraftAutosave";
 import { usePythonRunner } from "./usePythonRunner";
 
 export type WorkspaceExercise = {
@@ -20,12 +21,26 @@ export type WorkspaceExercise = {
 export const RESET_CONFIRM_MESSAGE =
   "Reset to the starter code? Your changes to this exercise will be lost.";
 
+// The one-line autosave status next to "Your code". Idle renders nothing, so
+// the line only appears once the learner has changed something.
+const SAVE_STATUS_TEXT: Record<SaveStatus, string> = {
+  idle: "",
+  saving: "Saving…",
+  saved: "Saved",
+  local: "Saved in this browser",
+  error: "Couldn't save — will retry",
+};
+
 // The exercises of one lesson, each with its own code editor. Edits are kept
 // per exercise while the lesson page stays open, including when switching
 // between exercises. The parent gives this component key={lessonPath}, so
 // drafts never leak from one lesson into another. (Next.js may also keep a
 // recently left lesson alive in a hidden <Activity>; coming back then shows
-// the same drafts. Nothing is saved across a reload: that is "Autosave".)
+// the same drafts.)
+//
+// Autosave (useDraftAutosave) restores saved code on load and writes edits
+// back out: to the learner's account when logged in, to this browser's
+// localStorage for visitors on sample lessons.
 //
 // Run executes the active exercise's current draft in a Python Web Worker
 // (see lib/python). One runner serves the lesson; switching exercise stops a
@@ -33,15 +48,23 @@ export const RESET_CONFIRM_MESSAGE =
 export default function ExerciseWorkspace({
   lessonPath,
   exercises,
+  isLoggedIn = false,
 }: {
   lessonPath: string;
   exercises: WorkspaceExercise[];
+  isLoggedIn?: boolean;
 }) {
   const [state, dispatch] = useReducer(draftsReducer, exercises, initDrafts);
   const [announcement, setAnnouncement] = useState("");
   const baseId = useId();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const { runner, snapshot } = usePythonRunner();
+  const { status: saveStatus, discardDraft } = useDraftAutosave({
+    lessonPath,
+    isLoggedIn,
+    state,
+    dispatch,
+  });
 
   const active = exercises.find((e) => e.slug === state.activeSlug);
   if (!active) return null;
@@ -79,6 +102,9 @@ export default function ExerciseWorkspace({
     if (!dirty) return;
     if (!window.confirm(RESET_CONFIRM_MESSAGE)) return;
     dispatch({ type: "reset", slug: active!.slug });
+    // Reset means reset: the saved draft goes too, so a refresh (or another
+    // device) also comes back to the starter code.
+    discardDraft(active!.slug);
     setAnnouncement("Starter code restored.");
   }
 
@@ -93,7 +119,15 @@ export default function ExerciseWorkspace({
 
       <div className="mt-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-gray-600">Your code</h3>
+          <div className="flex items-baseline gap-3">
+            <h3 className="text-sm font-semibold text-gray-600">Your code</h3>
+            <span
+              role="status"
+              className={`text-xs ${saveStatus === "error" ? "text-amber-700" : "text-gray-500"}`}
+            >
+              {SAVE_STATUS_TEXT[saveStatus]}
+            </span>
+          </div>
           <button
             type="button"
             onClick={reset}
@@ -133,8 +167,10 @@ export default function ExerciseWorkspace({
         </div>
       )}
       <p className="mt-3 text-sm text-gray-500">
-        Your code runs in your browser and is not sent anywhere. Checking it against the tests is
-        coming soon. Your edits are kept while this page is open.
+        Your code runs in your browser. Checking it against the tests is coming soon.{" "}
+        {isLoggedIn
+          ? "Your edits are saved to your account automatically."
+          : "Your edits are saved in this browser; create a free account to keep them everywhere."}
       </p>
     </div>
   );

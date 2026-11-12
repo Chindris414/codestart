@@ -35,6 +35,16 @@ export default function LessonList({
             <span className="flex items-center gap-2">
               {lesson.locked && <span aria-label="Locked" title="Log in to read this lesson">🔒</span>}
               <span className={lesson.locked ? "text-gray-500" : "font-medium"}>{lesson.title}</span>
+              {lesson.state === "completed" && (
+                <span className="rounded bg-green-700 px-2 py-0.5 text-xs font-medium text-white">
+                  ✓ Completed
+                </span>
+              )}
+              {lesson.state === "in_progress" && (
+                <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                  In progress
+                </span>
+              )}
               {lesson.is_sample && (
                 <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                   Free

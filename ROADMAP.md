@@ -21,8 +21,8 @@ The plan follows the four phases in [docs/codestart-spec.md](docs/codestart-spec
 - [x] Track, module and lesson pages in Next.js (~8 h)
 - [x] Monaco code editor in lessons: starter code, Reset, plain-text fallback
 - [x] Run in the browser (Pyodide in a Web Worker, `input()` support, Stop)
-- [ ] Autosave of code per exercise (~2 h)
-- [ ] Progress tracking: lesson states, dashboard percentages, "Continue", daily streak (~6 h)
+- [x] Autosave of code per exercise (~2 h)
+- [x] Progress tracking: lesson states, dashboard percentages, "Continue", daily streak (~6 h)
 - [ ] Plain-language explanations of common Python errors (~4 h)
 - [ ] First two modules of the Python Fundamentals track (content)
 

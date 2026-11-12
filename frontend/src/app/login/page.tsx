@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 
 import { postJson, safeNextPath } from "@/lib/auth";
+import { importLocalDrafts } from "@/lib/draftSync";
 
 function LoginForm() {
   const router = useRouter();
@@ -23,6 +24,8 @@ function LoginForm() {
     setLoading(false);
 
     if (res.ok) {
+      // Code written before logging in moves into the account (never throws).
+      await importLocalDrafts();
       router.push(next);
       router.refresh();
       return;

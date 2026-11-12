@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import ExerciseWorkspace from "@/components/editor/ExerciseWorkspace";
+import LessonProgressPanel from "@/components/LessonProgressPanel";
 import Markdown from "@/components/Markdown";
+import { getCurrentUser } from "@/lib/currentUser";
 import { apiGet, type LessonDetailResponse, type LessonLink } from "@/lib/learning";
 
 type Params = PageProps<"/tracks/[track]/[module]/[lesson]">["params"];
@@ -50,10 +52,14 @@ function NeighbourLink({
 
 async function LessonDetail({ params }: { params: Params }) {
   const { track, module, lesson } = await params;
-  const data = await apiGet<LessonDetailResponse>(
-    `/api/tracks/${encodeURIComponent(track)}/modules/${encodeURIComponent(module)}` +
-      `/lessons/${encodeURIComponent(lesson)}/`,
-  );
+  // The viewer decides where autosave writes: account (logged in) or browser.
+  const [data, user] = await Promise.all([
+    apiGet<LessonDetailResponse>(
+      `/api/tracks/${encodeURIComponent(track)}/modules/${encodeURIComponent(module)}` +
+        `/lessons/${encodeURIComponent(lesson)}/`,
+    ),
+    getCurrentUser(),
+  ]);
   if (!data) notFound();
 
   const lessonPath = `/tracks/${data.track.slug}/${data.module.slug}/${data.lesson.slug}`;
@@ -89,6 +95,7 @@ async function LessonDetail({ params }: { params: Params }) {
               // Separate drafts for every lesson.
               key={lessonPath}
               lessonPath={lessonPath}
+              isLoggedIn={user !== null}
               exercises={data.lesson.exercises.map((exercise) => ({
                 slug: exercise.slug,
                 title: exercise.title,
@@ -96,6 +103,15 @@ async function LessonDetail({ params }: { params: Params }) {
                 visible_tests: exercise.visible_tests,
                 instructions: <Markdown>{exercise.instructions}</Markdown>,
               }))}
+            />
+          )}
+
+          {user && (
+            <LessonProgressPanel
+              trackSlug={data.track.slug}
+              moduleSlug={data.module.slug}
+              lessonSlug={data.lesson.slug}
+              initialState={data.lesson.state}
             />
           )}
         </>
