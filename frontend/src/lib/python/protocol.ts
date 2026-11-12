@@ -8,7 +8,19 @@ export type ToWorker =
 
 export type RunOutcome =
   | { kind: "success" }
-  | { kind: "error"; name: string; line: number | null }
+  | {
+      kind: "error";
+      name: string;
+      line: number | null;
+      // The text after "Name: " on the last line of the traceback, e.g.
+      // "name 'pritn' is not defined. Did you mean: 'print'?". Used to pick a
+      // plain-language explanation (lib/python/errorExplanations.ts).
+      // Optional so an outdated worker bundle (public/python/worker.mjs not
+      // rebuilt yet) still works: it just gets the general explanation.
+      message?: string;
+      // The learner's source line the error points to, when known.
+      source?: string | null;
+    }
   | { kind: "stopped" };
 
 export type FromWorker =

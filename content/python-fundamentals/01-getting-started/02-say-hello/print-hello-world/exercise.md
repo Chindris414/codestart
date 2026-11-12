@@ -1,4 +1,10 @@
 ---
 title: Print Hello, world!
 ---
-Print the exact text `Hello, world!` — capital H, comma, exclamation mark.
+Use `print()` to show exactly this text:
+
+```
+Hello, world!
+```
+
+Capital H, a comma after *Hello*, and an exclamation mark at the end. Remember the quotes around the text.

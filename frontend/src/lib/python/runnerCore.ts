@@ -92,6 +92,24 @@ def _codestart_last_line(tb):
         tb = tb.tb_next
     return line
 
+def _codestart_message(report, error):
+    # The last line of the traceback without the "Name: " prefix. Taken from
+    # the formatted report rather than str(error), because that is where
+    # Python adds hints such as "Did you mean: 'print'?".
+    name = type(error).__name__
+    for text in reversed("".join(report.format_exception_only()).splitlines()):
+        if text == name:
+            return ""
+        if text.startswith(name + ": "):
+            return text[len(name) + 2:][:500]
+    return str(error)[:500]
+
+def _codestart_source_line(code, line):
+    lines = code.splitlines()
+    if line is None or not 1 <= line <= len(lines):
+        return None
+    return lines[line - 1].rstrip()[:200]
+
 def _codestart_run(code, input_supported, stop_requested):
     builtins.input = builtins._codestart_original_input if input_supported else _codestart_no_input
     # Lets tracebacks show the learner's source lines.
@@ -111,7 +129,7 @@ def _codestart_run(code, input_supported, stop_requested):
                 sys.stderr.write(str(error.code) + "\n")
             else:
                 sys.stderr.write(f"SystemExit: {error.code}\n")
-            return json.dumps({"kind": "error", "name": "SystemExit", "line": None})
+            return json.dumps({"kind": "error", "name": "SystemExit", "line": None, "message": "", "source": None})
         tb = error.__traceback__
         report = traceback.TracebackException(type(error), error, tb)
         # Show only the learner's own frames, not this harness.
@@ -123,7 +141,13 @@ def _codestart_run(code, input_supported, stop_requested):
             line = error.lineno
         else:
             line = _codestart_last_line(tb)
-        return json.dumps({"kind": "error", "name": type(error).__name__, "line": line})
+        return json.dumps({
+            "kind": "error",
+            "name": type(error).__name__,
+            "line": line,
+            "message": _codestart_message(report, error),
+            "source": _codestart_source_line(code, line),
+        })
     finally:
         sys.stdout.flush()
         sys.stderr.flush()

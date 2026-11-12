@@ -2,8 +2,11 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 
+import { explainError } from "@/lib/python/errorExplanations";
 import { INPUT_MAX_CHARS } from "@/lib/python/protocol";
 import type { OutputChunk, RunnerSnapshot, RunStatus } from "@/lib/python/PythonRunner";
+
+import ErrorExplanation from "./ErrorExplanation";
 
 const BUSY: RunStatus[] = ["loading", "running", "waiting-input", "stopping"];
 
@@ -87,6 +90,15 @@ export default function RunPanel({ snapshot, onRun, onStop, onClear, onSubmitInp
 
   const message = statusMessage(snapshot);
   const hasOutput = output.length > 0;
+  // Shown with the traceback it explains, so "Clear output" removes both.
+  const explanation =
+    status === "error" && hasOutput && snapshot.errorName
+      ? explainError({
+          name: snapshot.errorName,
+          message: snapshot.errorMessage ?? "",
+          line: snapshot.errorLine,
+        })
+      : null;
 
   return (
     <div className="mt-4">
@@ -156,6 +168,10 @@ export default function RunPanel({ snapshot, onRun, onStop, onClear, onSubmitInp
           </p>
         )}
       </div>
+
+      {explanation && (
+        <ErrorExplanation explanation={explanation} line={snapshot.errorLine} source={snapshot.errorSource} />
+      )}
 
       {status === "waiting-input" && (
         <form onSubmit={submit} className="mt-2 flex flex-wrap items-end gap-2">

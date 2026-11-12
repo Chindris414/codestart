@@ -36,6 +36,10 @@ export type RunnerSnapshot = {
   output: OutputChunk[];
   errorName: string | null;
   errorLine: number | null;
+  // For the plain-language explanation: the error message (without the
+  // "Name: " prefix) and the source line it points to.
+  errorMessage: string | null;
+  errorSource: string | null;
   failure: string | null;
   // Known after the first Run: false when the page isn't cross-origin
   // isolated, so input() can't be used.
@@ -65,6 +69,8 @@ export const CRASH_MESSAGE =
   "Python stopped working unexpectedly. Press Run to start it again; your code is still here.";
 export const TRUNCATED_NOTICE = "\n[Output limit reached: the rest of the output is not shown.]\n";
 
+const NO_ERROR = { errorName: null, errorLine: null, errorMessage: null, errorSource: null };
+
 const BUSY: RunStatus[] = ["loading", "running", "waiting-input", "stopping"];
 
 export class PythonRunner {
@@ -87,6 +93,8 @@ export class PythonRunner {
     output: [],
     errorName: null,
     errorLine: null,
+    errorMessage: null,
+    errorSource: null,
     failure: null,
     inputSupported: null,
   };
@@ -127,7 +135,7 @@ export class PythonRunner {
   // Runs `code`. Returns false (and does nothing) while a run is in progress.
   run(code: string): boolean {
     if (this.isBusy()) return false;
-    this.update({ output: [], errorName: null, errorLine: null, failure: null });
+    this.update({ output: [], ...NO_ERROR, failure: null });
     if (this.worker && this.ready) {
       this.start(code);
     } else {
@@ -183,7 +191,7 @@ export class PythonRunner {
       this.stop();
     }
     if (!this.stopping) this.update({ status: "idle" });
-    this.update({ output: [], errorName: null, errorLine: null, failure: null });
+    this.update({ output: [], ...NO_ERROR, failure: null });
   }
 
   clearOutput() {
@@ -294,7 +302,13 @@ export class PythonRunner {
 
   private finish(outcome: RunOutcome) {
     if (outcome.kind === "error") {
-      this.update({ status: "error", errorName: outcome.name, errorLine: outcome.line });
+      this.update({
+        status: "error",
+        errorName: outcome.name,
+        errorLine: outcome.line,
+        errorMessage: outcome.message ?? null,
+        errorSource: outcome.source ?? null,
+      });
     } else {
       this.update({ status: outcome.kind === "stopped" ? "stopped" : "success" });
     }

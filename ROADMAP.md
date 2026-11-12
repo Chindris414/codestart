@@ -23,8 +23,8 @@ The plan follows the four phases in [docs/codestart-spec.md](docs/codestart-spec
 - [x] Run in the browser (Pyodide in a Web Worker, `input()` support, Stop)
 - [x] Autosave of code per exercise (~2 h)
 - [x] Progress tracking: lesson states, dashboard percentages, "Continue", daily streak (~6 h)
-- [ ] Plain-language explanations of common Python errors (~4 h)
-- [ ] First two modules of the Python Fundamentals track (content)
+- [x] Plain-language explanations of common Python errors (~4 h)
+- [x] First two modules of the Python Fundamentals track (content)
 
 **Gate:** a beginner finishes module 1 end to end without help.
 

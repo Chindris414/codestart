@@ -85,7 +85,13 @@ describe("errors and tracebacks", () => {
   test("a runtime error shows a traceback of the learner's code only, with the line", () => {
     const { core, text } = setup();
     const outcome = core.run("print('before')\nx = 1\ny = x + nmae");
-    expect(outcome).toEqual({ kind: "error", name: "NameError", line: 3 });
+    expect(outcome).toEqual({
+      kind: "error",
+      name: "NameError",
+      line: 3,
+      message: "name 'nmae' is not defined",
+      source: "y = x + nmae",
+    });
     expect(text("stdout")).toBe("before\n");
     const traceback = text("stderr");
     expect(traceback).toContain('File "main.py", line 3, in <module>');
@@ -97,14 +103,26 @@ describe("errors and tracebacks", () => {
   test("the error line points into the learner's function, not the harness", () => {
     const { core, text } = setup();
     const outcome = core.run("def half(n):\n    return n / 0\n\nprint(half(4))");
-    expect(outcome).toEqual({ kind: "error", name: "ZeroDivisionError", line: 2 });
+    expect(outcome).toEqual({
+      kind: "error",
+      name: "ZeroDivisionError",
+      line: 2,
+      message: "division by zero",
+      source: "    return n / 0",
+    });
     expect(text("stderr")).toMatch(/line 4, in <module>[\s\S]*line 2, in half/);
   });
 
   test("a syntax error is reported with its line and a caret", () => {
     const { core, text } = setup();
     const outcome = core.run("print('ok')\nprint('unterminated");
-    expect(outcome).toEqual({ kind: "error", name: "SyntaxError", line: 2 });
+    expect(outcome).toEqual({
+      kind: "error",
+      name: "SyntaxError",
+      line: 2,
+      message: "unterminated string literal (detected at line 2)",
+      source: "print('unterminated",
+    });
     expect(text("stdout")).toBe(""); // nothing ran
     expect(text("stderr")).toMatch(/File "main.py", line 2\n.*print\('unterminated\n\s+\^/);
   });
@@ -118,7 +136,13 @@ describe("errors and tracebacks", () => {
     const { core, text } = setup();
     expect(core.run("import sys\nprint('bye')\nsys.exit()")).toEqual({ kind: "success" });
     expect(core.run("import sys\nsys.exit(0)")).toEqual({ kind: "success" });
-    expect(core.run("import sys\nsys.exit(3)")).toEqual({ kind: "error", name: "SystemExit", line: null });
+    expect(core.run("import sys\nsys.exit(3)")).toEqual({
+      kind: "error",
+      name: "SystemExit",
+      line: null,
+      message: "",
+      source: null,
+    });
     expect(core.run("import sys\nsys.exit('Goodbye!')")).toMatchObject({ kind: "error", name: "SystemExit" });
     expect(text("stderr")).toBe("SystemExit: 3\nGoodbye!\n");
   });

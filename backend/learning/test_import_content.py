@@ -246,12 +246,12 @@ class RepoContentTests(TestCase):
         run_import(REPO_CONTENT)
         track = Track.objects.get(slug="python-fundamentals")
         self.assertTrue(track.is_published)
-        self.assertEqual(track.modules.count(), 1)
-        self.assertEqual(Lesson.objects.filter(module__track=track).count(), 2)
-        self.assertEqual(Exercise.objects.filter(lesson__module__track=track).count(), 1)
+        self.assertEqual(track.modules.count(), 2)
+        self.assertEqual(Lesson.objects.filter(module__track=track).count(), 13)
+        self.assertEqual(Exercise.objects.filter(lesson__module__track=track).count(), 24)
         # The first lesson is the free sample of the "First visit" journey.
         self.assertTrue(Lesson.objects.get(slug="your-first-line").is_sample)
         self.assertFalse(Lesson.objects.get(slug="say-hello").is_sample)
 
         out = run_import(REPO_CONTENT)
-        self.assertIn("0 created, 0 updated, 5 unchanged", out)
+        self.assertIn("0 created, 0 updated, 40 unchanged", out)
