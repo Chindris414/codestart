@@ -17,7 +17,7 @@ The plan follows the four phases in [docs/codestart-spec.md](docs/codestart-spec
 ## Phase 2 · Learning core
 
 - [x] Content models: Track, Module, Lesson, Exercise, plus Django admin (~4 h)
-- [ ] Import command that loads lessons from Markdown files with front matter (~6 h)
+- [x] Import command that loads lessons from Markdown files with front matter (~6 h)
 - [x] Track, module and lesson pages in Next.js (~8 h)
 - [x] Monaco code editor in lessons: starter code, Reset, plain-text fallback
 - [x] Run in the browser (Pyodide in a Web Worker, `input()` support, Stop)
