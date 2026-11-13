@@ -30,8 +30,8 @@ The plan follows the four phases in [docs/codestart-spec.md](docs/codestart-spec
 
 ## Phase 3 · Grading and tutor
 
-- [ ] Submission model and Celery workers on Redis (~5 h)
-- [ ] Grading sandbox: throwaway container per submission, no network, CPU/memory/time limits (~12 h)
+- [x] Submission model and Celery workers on Redis (~5 h)
+- [x] Grading sandbox: throwaway container per submission, no network, CPU/memory/time limits (~12 h)
 - [ ] Submit with visible and hidden pytest tests and friendly results (~6 h)
 - [ ] Rate limiting on log-in and submissions (~3 h)
 - [ ] Tutor: error explanations and graduated hints (design in the spec; not started)

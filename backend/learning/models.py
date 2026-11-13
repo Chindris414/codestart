@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -105,12 +106,23 @@ class Exercise(models.Model):
     order = models.PositiveIntegerField(
         default=1, help_text="Position inside the lesson, starting at 1."
     )
+    # Per run of the learner's program inside the grading sandbox. Capped at
+    # 10 s because the sandbox as a whole gives up after 15 s.
+    time_limit_s = models.PositiveSmallIntegerField(
+        default=5,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Seconds the learner's program may run per check (1–10).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["lesson", "order"]
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(time_limit_s__gte=1, time_limit_s__lte=10),
+                name="exercise_time_limit_range",
+            ),
             models.UniqueConstraint(fields=["lesson", "slug"], name="unique_exercise_slug_per_lesson"),
             models.UniqueConstraint(fields=["lesson", "order"], name="unique_exercise_order_per_lesson"),
         ]

@@ -2,12 +2,15 @@ services:
   db:
     image: postgres:17
     restart: unless-stopped
+    networks: [data]
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "127.0.0.1:5432:5432"   # only reachable from your PC, not your LAN
+      # Only reachable from your PC, not your LAN. POSTGRES_PORT in .env lets a
+      # second checkout run its own database next to this one.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -19,13 +22,101 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    networks: [data, queue]
+    # Password from .env. The shell form keeps it out of this file;
+    # REDISCLI_AUTH lets the healthcheck's redis-cli log in.
+    command: ["sh", "-c", 'exec redis-server --requirepass "$$REDIS_PASSWORD"']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Django's Celery worker: only marks submissions running and saves results
+  # from the "results" queue. It never runs learner code. After changing
+  # backend code: docker compose up -d --build worker
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [data]
+
+  # Never started by "docker compose up" (it has its own profile): the
+  # grader starts one throwaway container from this image per submission.
+  # Build or rebuild it with: docker compose build sandbox
+  sandbox:
+    build: ./sandbox
+    image: ${SANDBOX_IMAGE:-codestart-sandbox:1}
+    profiles: ["sandbox-image"]
+
+  # Runs learner code, so it gets no database access at all: it sees only
+  # Redis (the "queue" network) and the Docker socket proxy. Rebuild after
+  # changing grader code: docker compose up -d --build grader
+  grader:
+    build: ./grader
+    restart: unless-stopped
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      DOCKER_HOST: tcp://docker-proxy:2375
+      # Both can be set in .env, so checkouts sharing one Docker keep their
+      # sandbox images and containers apart.
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-codestart-sandbox:1}
+      SANDBOX_LABEL: ${SANDBOX_LABEL:-codestart.sandbox}
+      SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-}  # "runsc" on a host with gVisor installed
+    depends_on:
+      redis:
+        condition: service_healthy
+      docker-proxy:
+        condition: service_started
+    networks: [queue, dockerapi]
+
+  # The only service that can touch the Docker socket. It forwards just the
+  # six container endpoints the grader needs (list, create, start, attach,
+  # kill/wait, remove) plus reading the sandbox image, and refuses everything
+  # else: no exec, no image pulls or builds, no volumes, no other networks.
+  # It listens only on the internal "dockerapi" network.
+  docker-proxy:
+    image: wollomatic/socket-proxy:1
+    restart: unless-stopped
+    user: "0:0"  # must be allowed to open the host's docker.sock
+    read_only: true
+    command:
+      - -listenip=0.0.0.0
+      - -allowfrom=grader
+      - -loglevel=INFO
+      - -watchdoginterval=600
+      - -stoponwatchdog
+      - -shutdowngracetime=5
+      - -allowGET=^/v1\.43/(containers/json|images/[^/]+/json)$
+      - -allowPOST=^/v1\.43/containers/(create|[a-f0-9]{12,64}/(start|kill|wait|attach))$
+      - -allowDELETE=^/v1\.43/containers/[a-f0-9]{12,64}$
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [dockerapi]
+
+networks:
+  data: {}  # PostgreSQL and the services allowed to reach it
+  queue:
+    internal: true  # Redis as seen by the grader; no way to the outside
+  dockerapi:
+    internal: true  # grader <-> docker-proxy only, no way out
 
 volumes:
   pgdata:

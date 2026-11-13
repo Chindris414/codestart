@@ -2,10 +2,12 @@
 
 import { useId, useReducer, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
+import { lessonSlugPath } from "@/lib/draftSync";
 import { draftsReducer, initDrafts, isDirty } from "@/lib/exerciseDrafts";
 
 import CodeEditor from "./CodeEditor";
 import RunPanel from "./RunPanel";
+import SubmitPanel from "./SubmitPanel";
 import { useDraftAutosave, type SaveStatus } from "./useDraftAutosave";
 import { usePythonRunner } from "./usePythonRunner";
 
@@ -45,6 +47,10 @@ const SAVE_STATUS_TEXT: Record<SaveStatus, string> = {
 // Run executes the active exercise's current draft in a Python Web Worker
 // (see lib/python). One runner serves the lesson; switching exercise stops a
 // run in progress and clears the output.
+//
+// Submit (SubmitPanel) sends the active exercise's draft to the server,
+// which checks it against the tests in a sandbox. Exercises without tests
+// have nothing to submit.
 export default function ExerciseWorkspace({
   lessonPath,
   exercises,
@@ -156,6 +162,16 @@ export default function ExerciseWorkspace({
           onClear={() => runner.clearOutput()}
           onSubmitInput={(text) => runner.submitInput(text)}
         />
+        {active.visible_tests && (
+          <SubmitPanel
+            key={active.slug}
+            slugPath={lessonSlugPath(lessonPath)}
+            lessonPath={lessonPath}
+            exerciseSlug={active.slug}
+            code={state.drafts[active.slug]}
+            isLoggedIn={isLoggedIn}
+          />
+        )}
       </div>
 
       {active.visible_tests && (
@@ -167,7 +183,7 @@ export default function ExerciseWorkspace({
         </div>
       )}
       <p className="mt-3 text-sm text-gray-500">
-        Your code runs in your browser. Checking it against the tests is coming soon.{" "}
+        Run tries your code in your browser; Submit checks it against the tests on our server.{" "}
         {isLoggedIn
           ? "Your edits are saved to your account automatically."
           : "Your edits are saved in this browser; create a free account to keep them everywhere."}

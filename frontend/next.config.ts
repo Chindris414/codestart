@@ -37,8 +37,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Django's API URLs end in "/". Next.js would otherwise redirect
+  // "/api/x/" to "/api/x" before proxying, and Django cannot route a PUT or
+  // POST without the slash (and loops on GET). Keep the slash and forward it.
+  skipTrailingSlashRedirect: true,
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];
+    return [
+      { source: "/api/:path*/", destination: `${backend}/api/:path*/` },
+      { source: "/api/:path*", destination: `${backend}/api/:path*` },
+    ];
   },
 };
 

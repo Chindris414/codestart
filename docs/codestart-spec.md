@@ -210,7 +210,7 @@ Twelve core tables cover v1; content tables are loaded from the Git repo, learne
 | Module | id, track_id, order, title | Ordered within a track |
 | Lesson | id, module_id, order, type (concept / exercise / quiz / project), title, body_md | Body stored as Markdown |
 | Exercise | id, lesson_id, starter_code, solution_code, visible_tests, hidden_tests, time_limit_s | Solution and hidden tests never sent to the browser |
-| Submission | id, user_id, exercise_id, code, status (queued / passed / failed / error), results_json, created_at | One row per Submit |
+| Submission | id, user_id, exercise_id, code, status (queued / running / passed / failed / error), results_json, created_at | One row per Submit; see [grading-sandbox.md](grading-sandbox.md) |
 | LessonProgress | user_id, lesson_id, state, completed_at | Drives dashboard percentages |
 | QuizQuestion | id, module_id, type, prompt, options_json, answer, explanation | Pool per module |
 | QuizAttempt | id, user_id, module_id, score, passed, created_at | Retakes allowed |

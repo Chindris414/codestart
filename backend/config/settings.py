@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import quote
+
 import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -48,6 +50,7 @@ INSTALLED_APPS = [
     'core',
     'accounts',
     'learning',
+    'grading',
 ]
 AUTH_USER_MODEL = "accounts.User"
 
@@ -141,3 +144,42 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
+# Celery: background grading over Redis
+# https://docs.celeryq.dev/en/stable/userguide/configuration.html
+#
+# Two queues, so the process that can start sandbox containers never needs
+# database access: the web app sends jobs to GRADING_QUEUE (consumed by the
+# separate grader service), and the grader reports back on RESULTS_QUEUE
+# (consumed by this project's Celery worker, which writes to the database).
+
+GRADING_QUEUE = "grading"
+RESULTS_QUEUE = "results"
+
+_redis_password = env("REDIS_PASSWORD", default="")
+_redis_auth = f":{quote(_redis_password, safe='')}@" if _redis_password else ""
+CELERY_BROKER_URL = (
+    f"redis://{_redis_auth}{env('REDIS_HOST', default='127.0.0.1')}"
+    f":{env('REDIS_PORT', default='6379')}/0"
+)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# JSON only: never unpickle anything that came through the queue.
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+
+# Results travel as messages on RESULTS_QUEUE, not through a result backend.
+CELERY_TASK_IGNORE_RESULT = True
+
+CELERY_TASK_ROUTES = {"grading.*": {"queue": RESULTS_QUEUE}}
+
+# The bookkeeping tasks are short, safe to repeat database writes: take one
+# message at a time and acknowledge it only once it is done, so a worker
+# that dies mid-task hands the message back instead of losing a result.
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_SOFT_TIME_LIMIT = 20
+CELERY_TASK_TIME_LIMIT = 30

@@ -30,6 +30,7 @@ class ExerciseInline(admin.StackedInline):
         "solution_code",
         "visible_tests",
         "hidden_tests",
+        "time_limit_s",
     )
     prepopulated_fields = {"slug": ("title",)}
     extra = 0
